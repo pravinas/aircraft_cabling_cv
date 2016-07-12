@@ -130,14 +130,14 @@ include_directories(
 # add_dependencies(pcl_sandbox ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(example src/example.cpp)
+add_executable(pcl_sandbox src/organized_segmentation_demo.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(pcl_sandbox_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(example
+target_link_libraries(pcl_sandbox
   ${catkin_LIBRARIES}
 )
 
