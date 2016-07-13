@@ -1,10 +1,10 @@
 #include <pcl/common/angles.h>
-//#include <pcl/apps/organized_segmentation_demo.h>
+#include <pcl/apps/organized_segmentation_demo.h>
 //QT4
-//#include <QApplication>
-//#include <QMutexLocker>
-//#include <QEvent>
-//#include <QObject>
+#include <QApplication>
+#include <QMutexLocker>
+#include <QEvent>
+#include <QObject>
 
 #include <pcl/segmentation/extract_polygonal_prism_data.h>
 #include <pcl/surface/convex_hull.h>

@@ -12,23 +12,16 @@ int
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
   // Fill in the cloud data
-  cloud->width  = 30;
+  cloud->width  = 15;
   cloud->height = 1;
   cloud->points.resize (cloud->width * cloud->height);
 
   // Generate the data
-  for (size_t i = 0; i < 15; ++i)
+  for (size_t i = 0; i < cloud->points.size (); ++i)
   {
     cloud->points[i].x = 1024 * rand () / (RAND_MAX + 1.0f);
     cloud->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
     cloud->points[i].z = 1.0;
-  }
-
-  for (size_t i = 16; i < 30; ++i)
-  {
-    cloud->points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
-    cloud->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
-    cloud->points[i].x = 1.0;
   }
 
   // Set a few outliers
