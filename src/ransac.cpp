@@ -17,6 +17,8 @@ int
   cloud->points.resize (cloud->width * cloud->height);
 
   // Generate the data
+  srand(time(NULL));
+
   for (size_t i = 0; i < 15; ++i)
   {
     cloud->points[i].x = 1024 * rand () / (RAND_MAX + 1.0f);
@@ -26,15 +28,17 @@ int
 
   for (size_t i = 16; i < 30; ++i)
   {
-    cloud->points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
-    cloud->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
     cloud->points[i].x = 1.0;
+    cloud->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
+    cloud->points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
   }
 
   // Set a few outliers
   cloud->points[0].z = 2.0;
   cloud->points[3].z = -2.0;
   cloud->points[6].z = 4.0;
+  cloud->points[19].x = 3.2;
+  cloud->points[24].x = -1.3;
 
   std::cerr << "Point cloud data: " << cloud->points.size () << " points" << std::endl;
   for (size_t i = 0; i < cloud->points.size (); ++i)
