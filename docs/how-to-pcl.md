@@ -1,5 +1,3 @@
-TODO: Document how to replicate my work with PCL and RANSAC so far.
-
 # How to use The Point Cloud Library (PCL) with ROS Indigo.
 
 ## Prerequisites
@@ -48,3 +46,7 @@ roscpp
 
 You should now be able to run any C++ files that utilize PCL's libraries in this package.
 
+## Further resources
+
+[ROS Wiki PCL Tutorial for catkin](wiki.ros.org/pcl/Tutorial)
+[PCL Official Tutorials](www.pointclouds.org/documentation/tutorials): Warning, many of these tutorials utilize rosbuild, rather than catkin, so you need to be aware of the difference.
