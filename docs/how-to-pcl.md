@@ -46,6 +46,15 @@ roscpp
 
 You should now be able to run any C++ files that utilize PCL's libraries in this package.
 
+## PCL Objects and Functions Used by this Code
+
+```c++ 
+pcl::PointCloud<pcl::PointXYZ>
+pcl::ModelCoefficients
+pcl::PointIndices
+pcl::SACSegmentation<pcl::PointXYZ>
+```
+
 ## Further resources
 
 [ROS Wiki PCL Tutorial for catkin](wiki.ros.org/pcl/Tutorial)

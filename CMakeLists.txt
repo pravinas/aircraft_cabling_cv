@@ -130,7 +130,7 @@ include_directories(
 # add_dependencies(pcl_sandbox ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(pcl_sandbox src/read_points.cpp)
+add_executable(pcl_sandbox src/cylinder_segmentation.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above

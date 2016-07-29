@@ -11,17 +11,16 @@
 
 #define POINT_CLOUD_MSG_QUEUE_LENGTH 3
 
+// Global Vars
+
+ros::Publisher pub;
+
+// Function triggered every time a message is published to the relevant topic.
 void readerCallback (const sensor_msgs::PointCloud2ConstPtr& input)
 {
   const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
   pcl::fromROSMsg(*input, *cloud);
-
-  //std::cerr << "Point cloud data: " << cloud->points.size () << " points" << std::endl;
-  //for (size_t i = 0; i < cloud->points.size (); ++i)
-  //  std::cerr << "    " << cloud->points[i].x << " "
-  //                      << cloud->points[i].y << " "
-  //                      << cloud->points[i].z << std::endl;
-
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
   // Create the segmentation object
@@ -66,8 +65,8 @@ int main (int argc, char **argv)
     }
 
     ros::Subscriber sub = nh.subscribe(argv[1], POINT_CLOUD_MSG_QUEUE_LENGTH, readerCallback); 
+    pub = nh.advertise<sensor_msgs::PointCloud2>("processed_cloud", POINT_CLOUD_MSG_QUEUE_LENGTH);
     ros::spin();
 
     return 0;
 }
-
