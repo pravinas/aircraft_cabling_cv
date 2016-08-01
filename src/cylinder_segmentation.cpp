@@ -32,7 +32,7 @@ int main (int argc, char** argv)
   pcl::PointIndices::Ptr inliers_plane (new pcl::PointIndices), inliers_cylinder (new pcl::PointIndices);
 
   // Read in the cloud data
-  reader.read ("table_scene_mug_stereo_textured.pcd", *cloud);
+  reader.read ("data/mockups/mockup_1.pcd", *cloud);
   std::cerr << "PointCloud has: " << cloud->points.size () << " data points." << std::endl;
 
   // Build a passthrough filter to remove spurious NaNs
