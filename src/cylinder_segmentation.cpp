@@ -8,6 +8,9 @@
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 
+#define COLOR_RED 0xff0000
+#define COLOR_BLUE 0x0000ff
+
 typedef pcl::PointXYZRGB PointT;
 
 int main (int argc, char** argv)
@@ -34,7 +37,7 @@ int main (int argc, char** argv)
   pcl::PointIndices::Ptr inliers_plane (new pcl::PointIndices), inliers_plane2 (new pcl::PointIndices), inliers_cylinder (new pcl::PointIndices);
 
   // Read in the cloud data
-  reader.read ("data/mockups/mockup_1.pcd", *cloud);
+  reader.read ("data/twocable/twocable1.pcd", *cloud);
   std::cerr << "PointCloud has: " << cloud->points.size () << " data points." << std::endl;
 
   // Build a passthrough filter to remove spurious NaNs
@@ -143,7 +146,11 @@ int main (int argc, char** argv)
   else
   {
 	  std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points." << std::endl;
+      std::cerr << "rgb " << ((*reinterpret_cast<int*>(&(cloud_cylinder->points[20]).rgb) >> 16) & 0x0000ff) << std::endl; 
 	  writer.write ("cable.pcd", *cloud_cylinder, false);
+      
+      reader.read ("cable.pcd", *cloud_cylinder);
+      std::cerr << "rgb " << ((*reinterpret_cast<int*>(&(cloud_cylinder->points[20]).rgb) >> 16) & 0x0000ff) << std::endl; 
   }
   return (0);
 }
