@@ -16,144 +16,99 @@
 #define COLOR_BLUE 0x0000ff
 
 typedef pcl::PointXYZRGB PointT;
+
 ros::Publisher pc_pub;
 
-void readerCallback (const sensor_msgs::PointCloud2ConstPtr& input)
+void filterCloud(pcl::PointCloud<PointT>::Ptr input,
+        pcl::PointCloud<PointT>::Ptr output, 
+        pcl::PointCloud<pcl::Normal>::Ptr output_normals)
 {
-  const pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
-
-  pcl::fromROSMsg(*input, *cloud);
-
   // All the objects needed
   pcl::PassThrough<PointT> pass;
   pcl::NormalEstimation<PointT, pcl::Normal> ne;
-  pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg; 
-  pcl::ExtractIndices<PointT> extract;
-  pcl::ExtractIndices<pcl::Normal> extract_normals;
   pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
 
-  // Datasets
-  pcl::PointCloud<PointT>::Ptr cloud_filtered (new pcl::PointCloud<PointT>);
-  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
-  pcl::PointCloud<PointT>::Ptr cloud_filtered2 (new pcl::PointCloud<PointT>);
-  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2 (new pcl::PointCloud<pcl::Normal>);
-  pcl::PointCloud<PointT>::Ptr cloud_filtered3 (new pcl::PointCloud<PointT>);
-  pcl::PointCloud<pcl::Normal>::Ptr cloud_normals3 (new pcl::PointCloud<pcl::Normal>);
-  pcl::ModelCoefficients::Ptr coefficients_plane (new pcl::ModelCoefficients), coefficients_plane2 (new pcl::ModelCoefficients), coefficients_cylinder (new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers_plane (new pcl::PointIndices), inliers_plane2 (new pcl::PointIndices), inliers_cylinder (new pcl::PointIndices);
-
-  // Read in the cloud data
-  std::cerr << "PointCloud has: " << cloud->points.size () << " data points." << std::endl;
-
   // Build a passthrough filter to remove spurious NaNs
-  pass.setInputCloud (cloud);
+  pass.setInputCloud (input);
   pass.setFilterFieldName ("z");
   pass.setFilterLimits (0, 1.5);
-  pass.filter (*cloud_filtered);
-  std::cerr << "PointCloud after filtering has: " << cloud_filtered->points.size () << " data points." << std::endl;
+  pass.filter (*output);
 
   // Estimate point normals
   ne.setSearchMethod (tree);
-  ne.setInputCloud (cloud_filtered);
+  ne.setInputCloud (output);
   ne.setKSearch (50);
-  ne.compute (*cloud_normals);
+  ne.compute (*output_normals);
+}
+
+void removeModel(pcl::PointCloud<PointT>::Ptr cloud, 
+        pcl::PointCloud<pcl::Normal>::Ptr normals, 
+        int model, 
+        pcl::PointCloud<PointT>::Ptr output) 
+{
+  // Objects needed
+  pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg; 
+  pcl::ExtractIndices<PointT> extract;
+  pcl::ExtractIndices<pcl::Normal> extract_normals;
+
+  //Data
+  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 
   // Create the segmentation object for the planar model and set all the parameters
   seg.setOptimizeCoefficients (true);
-  seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
+  seg.setModelType (model);
   seg.setNormalDistanceWeight (0.1);
   seg.setMethodType (pcl::SAC_RANSAC);
   seg.setMaxIterations (100);
-  seg.setDistanceThreshold (0.03);
-  seg.setInputCloud (cloud_filtered);
-  seg.setInputNormals (cloud_normals);
+  seg.setDistanceThreshold (0.05);
+  seg.setInputCloud (cloud);
+  seg.setInputNormals (normals);
   // Obtain the plane inliers and coefficients
-  seg.segment (*inliers_plane, *coefficients_plane);
-  std::cerr << "Plane coefficients: " << *coefficients_plane << std::endl;
+  seg.segment (*inliers, *coefficients);
 
   // Extract the planar inliers from the input cloud
-  extract.setInputCloud (cloud_filtered);
-  extract.setIndices (inliers_plane);
+  extract.setInputCloud (cloud);
+  extract.setIndices (inliers);
   extract.setNegative (false);
 
   // Write the planar inliers to disk
   pcl::PointCloud<PointT>::Ptr cloud_plane (new pcl::PointCloud<PointT> ());
-  extract.filter (*cloud_plane);
-  std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
+  extract.filter (*output);
 
   // Remove the planar inliers, extract the rest
   extract.setNegative (true);
-  extract.filter (*cloud_filtered2);
+  extract.filter (*cloud);
   extract_normals.setNegative (true);
-  extract_normals.setInputCloud (cloud_normals);
-  extract_normals.setIndices (inliers_plane);
-  extract_normals.filter (*cloud_normals2);
+  extract_normals.setInputCloud (normals);
+  extract_normals.setIndices (inliers);
+  extract_normals.filter (*normals);
+}
 
-  // Now do it again.
 
-  // Create the segmentation object for the planar model and set all the parameters
-  seg.setOptimizeCoefficients (true);
-  seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
-  seg.setNormalDistanceWeight (0.1);
-  seg.setMethodType (pcl::SAC_RANSAC);
-  seg.setMaxIterations (100);
-  seg.setDistanceThreshold (0.03);
-  seg.setInputCloud (cloud_filtered2);
-  seg.setInputNormals (cloud_normals2);
-  // Obtain the plane inliers and coefficients
-  seg.segment (*inliers_plane2, *coefficients_plane2);
-  std::cerr << "Plane coefficients: " << *coefficients_plane2 << std::endl;
+void readerCallback (const sensor_msgs::PointCloud2ConstPtr& input)
+{
+  const pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
+  const pcl::PointCloud<PointT>::Ptr swap(new pcl::PointCloud<PointT>);
+  const pcl::PointCloud<PointT>::Ptr cable1(new pcl::PointCloud<PointT>);
+  const pcl::PointCloud<PointT>::Ptr cable2(new pcl::PointCloud<PointT>);
+  const pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 
-  // Extract the planar inliers from the input cloud
-  extract.setInputCloud (cloud_filtered2);
-  extract.setIndices (inliers_plane2);
-  extract.setNegative (false);
+  pcl::fromROSMsg(*input, *cloud);
+  std::cerr << "PointCloud has: " << cloud->points.size () << " data points." << std::endl;
 
-  // Write the planar inliers to disk
-  //pcl::PointCloud<PointT>::Ptr cloud_plane (new pcl::PointCloud<PointT> ());
-  extract.filter (*cloud_plane);
-  std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
+  filterCloud(cloud, cloud, normals);
+  removeModel(cloud, normals, pcl::SACMODEL_NORMAL_PLANE, swap);
+  removeModel(cloud, normals, pcl::SACMODEL_NORMAL_PLANE, swap);
 
-  // Remove the planar inliers, extract the rest
-  extract.setNegative (true);
-  extract.filter (*cloud_filtered3);
-  extract_normals.setNegative (true);
-  extract_normals.setInputCloud (cloud_normals2);
-  extract_normals.setIndices (inliers_plane2);
-  extract_normals.filter (*cloud_normals3);
+  //removeModel(cloud, normals, pcl::SACMODEL_CYLINDER, cable1);
+  //removeModel(cloud, normals, pcl::SACMODEL_CYLINDER, cable2);
+  
+  std::cerr << "PointCloud representing the cylindrical component: " << cloud->points.size () << " data points." << std::endl;
 
-  // Doing it again ceased
-  // Create the segmentation object for cylinder segmentation and set all the parameters
-  seg.setOptimizeCoefficients (true);
-  seg.setModelType (pcl::SACMODEL_LINE);
-  seg.setMethodType (pcl::SAC_RANSAC);
-  seg.setNormalDistanceWeight (0.1);
-  seg.setMaxIterations (10000);
-  seg.setDistanceThreshold (0.05);
-  seg.setRadiusLimits (0, 0.1);
-  seg.setInputCloud (cloud_filtered3);
-  seg.setInputNormals (cloud_normals3);
-
-  // Obtain the cylinder inliers and coefficients
-  seg.segment (*inliers_cylinder, *coefficients_cylinder);
-  std::cerr << "Cylinder coefficients: " << *coefficients_cylinder << std::endl;
-
-  // Write the cylinder inliers to disk
-  extract.setInputCloud (cloud_filtered3);
-  extract.setIndices (inliers_cylinder);
-  extract.setNegative (false);
-  pcl::PointCloud<PointT>::Ptr cloud_cylinder (new pcl::PointCloud<PointT> ());
-  extract.filter (*cloud_cylinder);
-  if (cloud_cylinder->points.empty ()) 
-    std::cerr << "Can't find the cylindrical component." << std::endl;
-  else
-  {
-	  std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points." << std::endl;
-
-      sensor_msgs::PointCloud2 output;
-      pcl::toROSMsg(*cloud_cylinder, output);
-      pc_pub.publish(output);
-  }
+  sensor_msgs::PointCloud2 output;
+  pcl::toROSMsg(*cloud, output);
+  pc_pub.publish(output);
 }
 
 int main(int argc, char** argv)
