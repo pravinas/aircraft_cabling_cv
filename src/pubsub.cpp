@@ -1,3 +1,7 @@
+#include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
+
+#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
@@ -12,22 +16,23 @@
 #define COLOR_BLUE 0x0000ff
 
 typedef pcl::PointXYZRGB PointT;
+ros::Publisher pc_pub;
 
-//int main (int argc, char** argv)
-void pointCloudCallback(pcl::PointCloud<PointT> cloud)
+void readerCallback (const sensor_msgs::PointCloud2ConstPtr& input)
 {
+  const pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
+
+  pcl::fromROSMsg(*input, *cloud);
+
   // All the objects needed
-  pcl::PCDReader reader;
   pcl::PassThrough<PointT> pass;
   pcl::NormalEstimation<PointT, pcl::Normal> ne;
   pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg; 
-  pcl::PCDWriter writer;
   pcl::ExtractIndices<PointT> extract;
   pcl::ExtractIndices<pcl::Normal> extract_normals;
   pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
 
   // Datasets
-  pcl::PointCloud<PointT>::Ptr cloud (new pcl::PointCloud<PointT>);
   pcl::PointCloud<PointT>::Ptr cloud_filtered (new pcl::PointCloud<PointT>);
   pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
   pcl::PointCloud<PointT>::Ptr cloud_filtered2 (new pcl::PointCloud<PointT>);
@@ -38,7 +43,6 @@ void pointCloudCallback(pcl::PointCloud<PointT> cloud)
   pcl::PointIndices::Ptr inliers_plane (new pcl::PointIndices), inliers_plane2 (new pcl::PointIndices), inliers_cylinder (new pcl::PointIndices);
 
   // Read in the cloud data
-  reader.read ("data/twocable/twocable1.pcd", *cloud);
   std::cerr << "PointCloud has: " << cloud->points.size () << " data points." << std::endl;
 
   // Build a passthrough filter to remove spurious NaNs
@@ -76,7 +80,6 @@ void pointCloudCallback(pcl::PointCloud<PointT> cloud)
   pcl::PointCloud<PointT>::Ptr cloud_plane (new pcl::PointCloud<PointT> ());
   extract.filter (*cloud_plane);
   std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
-  writer.write ("plane1.pcd", *cloud_plane, false);
 
   // Remove the planar inliers, extract the rest
   extract.setNegative (true);
@@ -110,7 +113,6 @@ void pointCloudCallback(pcl::PointCloud<PointT> cloud)
   //pcl::PointCloud<PointT>::Ptr cloud_plane (new pcl::PointCloud<PointT> ());
   extract.filter (*cloud_plane);
   std::cerr << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
-  writer.write ("plane2.pcd", *cloud_plane, false);
 
   // Remove the planar inliers, extract the rest
   extract.setNegative (true);
@@ -147,11 +149,20 @@ void pointCloudCallback(pcl::PointCloud<PointT> cloud)
   else
   {
 	  std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points." << std::endl;
-      std::cerr << "rgb " << ((*reinterpret_cast<int*>(&(cloud_cylinder->points[20]).rgb) >> 16) & 0x0000ff) << std::endl; 
-	  writer.write ("cable.pcd", *cloud_cylinder, false);
-      
-      reader.read ("cable.pcd", *cloud_cylinder);
-      std::cerr << "rgb " << ((*reinterpret_cast<int*>(&(cloud_cylinder->points[20]).rgb) >> 16) & 0x0000ff) << std::endl; 
+
+      sensor_msgs::PointCloud2 output;
+      pcl::toROSMsg(*cloud_cylinder, output);
+      pc_pub.publish(output);
   }
-  return (0);
+}
+
+int main(int argc, char** argv)
+{
+    ros::init(argc, argv, "pcl_sandbox");
+    ros::NodeHandle n;
+    std::cerr << argv[1] << std::endl;
+    ros::Subscriber sub = n.subscribe(argv[1], 2, readerCallback); 
+    pc_pub = n.advertise<sensor_msgs::PointCloud2>("extracted_cable", 2); 
+    ros::spin();
+    return 0;
 }
