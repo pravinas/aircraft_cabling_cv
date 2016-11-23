@@ -131,15 +131,15 @@ include_directories(
 
 ## Declare a C++ executable
 add_executable(pcl_sandbox src/pubsub.cpp)
+#add_executable(id_markers src/id_markers.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(pcl_sandbox_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(pcl_sandbox
-  ${catkin_LIBRARIES}
-)
+target_link_libraries(pcl_sandbox  ${catkin_LIBRARIES})
+#target_link_libraries(id_markers  ${catkin_LIBRARIES})
 
 #############
 ## Install ##
