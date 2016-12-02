@@ -90,19 +90,19 @@ void readerCallback (const sensor_msgs::PointCloud2ConstPtr& input)
   sac_seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
   sac_seg.setNormalDistanceWeight (0.1);
   sac_seg.setMethodType (pcl::SAC_RANSAC);
-  sac_seg.setMaxIterations (100);
-  sac_seg.setDistanceThreshold (0.05);
+  sac_seg.setMaxIterations (200);
+  sac_seg.setDistanceThreshold (0.03);
 
   filterCloud(cloud, cloud, normals);
   removeModel(cloud, normals, sac_seg, true);
-  sac_seg.setDistanceThreshold (0.035);
+  sac_seg.setDistanceThreshold (0.01);
   removeModel(cloud, normals, sac_seg, true);
 
   //sac_seg.setModelType (pcl::SACMODEL_LINE);
   //sac_seg.setDistanceThreshold (0.15);
   //removeModel(cloud, normals, sac_seg, false); 
   
-  std::cerr << "PointCloud representing the cylindrical component: " << cloud->points.size () << " data points." << std::endl;
+  std::cerr << "PointCloud representing the extracted component: " << cloud->points.size () << " data points." << std::endl;
 
   sensor_msgs::PointCloud2 output;
   pcl::toROSMsg(*cloud, output);
@@ -111,6 +111,11 @@ void readerCallback (const sensor_msgs::PointCloud2ConstPtr& input)
 
 int main(int argc, char** argv)
 {
+    if (argc < 2){
+        std::cerr << "Usage: rosrun pcl_sandbox pcl_sandbox <PointCloud2 topic>" <<std::endl;
+        return -1;
+    }
+
     ros::init(argc, argv, "pcl_sandbox");
     ros::NodeHandle n;
     ros::Subscriber sub = n.subscribe(argv[1], 2, readerCallback); 

@@ -73,19 +73,27 @@ class LocateBlob:
             x = point[0]
             y = point[1]
             z = point[2]
-            rgb = point[3]
-            pack = int(rgb)
+            rgb = point[7]
+            # cast float32 to int so that bitwise operations are possible
+            s = struct.pack('>f' , rgb)
+            i = struct.unpack('>l', s)[0]
+            
+            # you can get back the float value by the inverse operations
+            pack = ctypes.c_uint32(i).value
             r = (pack & 0x00FF0000) >> 16
             g = (pack & 0x0000FF00) >> 8
             b = (pack & 0x000000FF)
-            if r > 1.1 * g and r > 1.1 * b:
+            if r > 1.5 * g and r > 1.5 * b and r > 100:
                 points_out += [[x,y,z,rgb]]
                 N += 1
             
           
         if N != 0:  
+            print N
             pointCloudMsg = pc2.create_cloud(msg.header, [xField, yField, zField, rgbField], points_out) 
             self.pub.publish(pointCloudMsg)
+        else:
+            print "no points"
        
     def run(self):
         rospy.init_node(self.name, anonymous=True)
@@ -101,6 +109,7 @@ if __name__ == '__main__':
     color = sys.argv[2]
     cloud_topic = sys.argv[3]
     cloud_topic_out = sys.argv[4]
+    print cloud_topic
     
     locateBlob = LocateBlob(name, color, cloud_topic, cloud_topic_out)
     
