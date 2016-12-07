@@ -18,27 +18,7 @@ class LocateBlob:
         self.ptCloudTopicOut = ptCloudTopicOut
         self.pub = None
         
-    def getColor(self):
-        colorMsg = ColorRGBA()
-        
-        if self.color == 'red' or self.color == 'r':
-            colorMsg.r = 1.0
-        elif self.color == 'green' or self.color == 'g':
-            colorMsg.g = 1.0
-        elif self.color == 'blue' or self.color == 'b':
-            colorMsg.b = 1.0
-        elif self.color == 'yellow' or self.color == 'y':
-            colorMsg.r = 1.0
-            colorMsg.g = 1.0
-        else:
-            colorMsg.r = 0.5
-            colorMsg.g = 0.5
-            colorMsg.b = 0.5
-            
-        colorMsg.a = 1.0
-            
-        return colorMsg
-        
+
     def locate(self, msg):
         points = pc2.read_points(msg, skip_nans=True)
         points_out = []
@@ -83,13 +63,18 @@ class LocateBlob:
             r = (pack & 0x00FF0000) >> 16
             g = (pack & 0x0000FF00) >> 8
             b = (pack & 0x000000FF)
-            if r > 1.5 * g and r > 1.5 * b and r > 100:
-                points_out += [[x,y,z,rgb]]
-                N += 1
+            if self.color == "red":
+                if r > 1.5 * g and r > 1.5 * b and r > 100:
+                    points_out += [[x,y,z,rgb]]
+                    N += 1
             
+            if self.color == "blue":
+                if b > 1.5 * g and b > 1.5 * r and b > 100:
+                    points_out += [[x,y,z,rgb]]
+                    N += 1
           
         if N != 0:  
-            print N
+            print str(N) + " points in color-filtered point cloud"
             pointCloudMsg = pc2.create_cloud(msg.header, [xField, yField, zField, rgbField], points_out) 
             self.pub.publish(pointCloudMsg)
         else:
@@ -109,7 +94,6 @@ if __name__ == '__main__':
     color = sys.argv[2]
     cloud_topic = sys.argv[3]
     cloud_topic_out = sys.argv[4]
-    print cloud_topic
     
     locateBlob = LocateBlob(name, color, cloud_topic, cloud_topic_out)
     
