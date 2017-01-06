@@ -53,7 +53,7 @@ class LocateBlob:
             x = point[0]
             y = point[1]
             z = point[2]
-            rgb = point[7]
+            rgb = point[3]
             # cast float32 to int so that bitwise operations are possible
             s = struct.pack('>f' , rgb)
             i = struct.unpack('>l', s)[0]
@@ -90,6 +90,7 @@ class LocateBlob:
         
         
 if __name__ == '__main__':
+    print "Usage: rosrun pcl_sandbox id_markers.py <nodename> <color (red/blue)> <PointCloud2 topic in> <PointCloud2 topic out>"
     name = sys.argv[1]
     color = sys.argv[2]
     cloud_topic = sys.argv[3]

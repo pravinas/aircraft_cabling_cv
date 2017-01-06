@@ -30,13 +30,12 @@ class KMeans:
         kmeans = KM(n_clusters = 10)
         kmeans.fit(data)
         print kmeans.cluster_centers_
+        centers = sorted(kmeans.cluster_centers_, key=lambda p: p[0])
 
         markers = MarkerArray()
-        id_num = 0
-        for center in kmeans.cluster_centers_:
+        for id_num, center in enumerate(centers):
             centerMarker = self.makeMarker(msg.header, id_num, center)
             markers.markers.append(centerMarker)
-            id_num += 1
 
         self.pub.publish(markers)
 
