@@ -64,7 +64,7 @@ class LocateBlob:
             g = (pack & 0x0000FF00) >> 8
             b = (pack & 0x000000FF)
             if self.color == "red":
-                if r > 1.5 * g and r > 1.5 * b and r > 100:
+                if r > 2.0 * g and r > 2.0 * b and r > 100:
                     points_out += [[x,y,z,rgb]]
                     N += 1
             
