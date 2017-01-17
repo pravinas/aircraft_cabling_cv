@@ -22,13 +22,13 @@ from sklearn.gaussian_process.kernels import Matern
 from scipy import spatial
 
 class DataRegressor():
-    def __init__(self, array_in, cloud_in):
+    def __init__(self, array_in, cloud_in, norm_tolerance=1.1):
         self.name = "gpr_node" 
         self.array_in = array_in
         self.cloud_in = cloud_in
         self.cloudLock = threading.Lock() 
         self.cloud = None
-        self.iterations = 10
+        self.norm_tolerance = norm_tolerance # The max ratio between norms. Should be > 1
         self.gp_x = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
         self.gp_y = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
         self.gp_z = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
@@ -73,8 +73,11 @@ class DataRegressor():
         self.cloudLock.acquire()
         cloud_np = np.array(list(self.cloud))[:,0:3]
         cloud_kdtree = spatial.KDTree(cloud_np)
+        prev_norm = 100
+        new_norm = 1
+        print "begin loop"
 
-        for iteration in range(self.iterations):
+        while prev_norm/new_norm > self.norm_tolerance or new_norm/prev_norm > self.norm_tolerance:
             # Fit GPR Models
             self.gp_x.fit(X[:, np.newaxis], y_x) 
             self.gp_y.fit(X[:, np.newaxis], y_y) 
@@ -89,6 +92,9 @@ class DataRegressor():
             distances, cloud_indices = cloud_kdtree.query(guesses, eps=0, distance_upper_bound=.2)
             refined_values = cloud_np[cloud_indices]
             y_x, y_y, y_z = refined_values.T
+
+            prev_norm = new_norm
+            new_norm =  np.linalg.norm(distances, np.inf)
         self.cloudLock.release()
         print "GPR complete" 
         # TODO: Output these in marker format
