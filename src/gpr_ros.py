@@ -9,6 +9,7 @@ from threading import Lock
 # ROS Imports
 
 import rospy
+import std_msgs.msg
 import sensor_msgs.point_cloud2 as pc2
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker, MarkerArray
@@ -26,8 +27,10 @@ class DataRegressor():
         self.name = "gpr_node" 
         self.array_in = array_in
         self.cloud_in = cloud_in
+        self.marker_pub = None
         self.cloudLock = threading.Lock() 
         self.cloud = None
+        self.frame_id = None
         self.norm_tolerance = norm_tolerance # The max ratio between norms. Should be > 1
         self.gp_x = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
         self.gp_y = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
@@ -39,13 +42,15 @@ class DataRegressor():
             self.cloud = pc2.read_points(cloud_msg, skip_nans=True)
             self.cloudLock.release()
 
-    def makeMarker(self, header, id_num, point):
+    def makeMarker(self, id_num, point):
         marker = Marker()
-        marker.header = header
+        marker.header = std_msgs.msg.Header()
+        marker.header.stamp = rospy.Time.now()
+        marker.header.frame_id = self.frame_id
         marker.id = id_num
         marker.type = marker.SPHERE
         marker.action = marker.ADD
-        marker.scale.x = 0.03
+        marker.scale.x = 0.03 
         marker.scale.y = 0.03
         marker.scale.z = 0.03
         marker.color.r = 1.0
@@ -61,6 +66,7 @@ class DataRegressor():
     def fit(self, marker_array_msg):
         # Initialize setup
         marker_array = np.array(marker_array_msg.markers)
+        self.frame_id = marker_array[0].header.frame_id
         X = np.array([0.1* marker.id for marker in marker_array])
         y_x = np.array([marker.pose.position.x for marker in marker_array])
         y_y = np.array([marker.pose.position.y for marker in marker_array])
@@ -97,13 +103,32 @@ class DataRegressor():
             new_norm =  np.linalg.norm(distances, np.inf)
         self.cloudLock.release()
         print "GPR complete" 
-        # TODO: Output these in marker format
+
+        # Output these in marker format
+        markers = MarkerArray()
+        for i in range(len(X)):
+            marker = self.makeMarker(i, (y_x[i], y_y[i], y_z[i])) 
+            markers.markers.append(marker)
+        self.marker_pub.publish(markers)
+
+        # Renormalize
+        points = zip(y_x, y_y, y_z)
+        prev_pt = points[0]
+        lengths = []
+        lastlen = 0
+        for (i, point) in enumerate(points):
+            added_len = (point[0]-prev_pt[0])**2 + (point[1]-prev_pt[1])**2 + (point[2]-prev_pt[2])**2
+            lastlen = lastlen + added_len
+            prev_pt = point
+            lengths.append(lastlen)
+        # lengths is the renormalized lengths. what do we do now?
     
     def run(self):
         rospy.init_node(self.name, anonymous=True)
         #self.pub = rospy.Publisher(self.ptCloudTopicOut, PointCloud2, queue_size=1)
         rospy.Subscriber(self.array_in, MarkerArray, self.fit)    
         rospy.Subscriber(self.cloud_in, PointCloud2, self.updateCloud)
+        self.marker_pub = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
         rospy.spin()
 
 if __name__ == '__main__':
