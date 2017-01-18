@@ -21,6 +21,7 @@ from matplotlib import pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern 
 from scipy import spatial
+import math
 
 class DataRegressor():
     def __init__(self, array_in, cloud_in, norm_tolerance=1.1):
@@ -112,16 +113,21 @@ class DataRegressor():
         self.marker_pub.publish(markers)
 
         # Renormalize
-        points = zip(y_x, y_y, y_z)
+        guess_lengths = np.linspace(X[0], X[-1], num=500)
+        x_coords = self.gp_x.predict(guess_lengths[:, np.newaxis])
+        y_coords = self.gp_y.predict(guess_lengths[:, np.newaxis])
+        z_coords = self.gp_z.predict(guess_lengths[:, np.newaxis])
+        points = zip(x_coords, y_coords, z_coords) 
         prev_pt = points[0]
         lengths = []
         lastlen = 0
         for (i, point) in enumerate(points):
-            added_len = (point[0]-prev_pt[0])**2 + (point[1]-prev_pt[1])**2 + (point[2]-prev_pt[2])**2
+            added_len = math.sqrt((point[0]-prev_pt[0])**2 + (point[1]-prev_pt[1])**2 + (point[2]-prev_pt[2])**2)
             lastlen = lastlen + added_len
             prev_pt = point
             lengths.append(lastlen)
-        # lengths is the renormalized lengths. what do we do now?
+        print lengths[-1]
+        print X[-1]
     
     def run(self):
         rospy.init_node(self.name, anonymous=True)
