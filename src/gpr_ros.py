@@ -20,7 +20,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern 
-from scipy import spatial
+from scipy import spatial, interpolate
 import math
 
 class DataRegressor():
@@ -29,9 +29,11 @@ class DataRegressor():
         self.array_in = array_in
         self.cloud_in = cloud_in
         self.marker_pub = None
+        self.marker_pub2 = None
         self.cloudLock = threading.Lock() 
         self.cloud = None
         self.frame_id = None
+        self.length_fn = None
         self.norm_tolerance = norm_tolerance # The max ratio between norms. Should be > 1
         self.gp_x = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
         self.gp_y = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
@@ -43,7 +45,7 @@ class DataRegressor():
             self.cloud = pc2.read_points(cloud_msg, skip_nans=True)
             self.cloudLock.release()
 
-    def makeMarker(self, id_num, point):
+    def makeMarker(self, id_num, point, rgb=(1.0,1.0,1.0)):
         marker = Marker()
         marker.header = std_msgs.msg.Header()
         marker.header.stamp = rospy.Time.now()
@@ -51,12 +53,12 @@ class DataRegressor():
         marker.id = id_num
         marker.type = marker.SPHERE
         marker.action = marker.ADD
-        marker.scale.x = 0.03 
-        marker.scale.y = 0.03
-        marker.scale.z = 0.03
-        marker.color.r = 1.0
-        marker.color.g = 1.0
-        marker.color.b = 1.0
+        marker.scale.x = 0.02 
+        marker.scale.y = 0.02
+        marker.scale.z = 0.02
+        marker.color.r = rgb[0]
+        marker.color.g = rgb[1] 
+        marker.color.b = rgb[2]
         marker.color.a = 1.0
         marker.pose.orientation.w = 1.0
         marker.pose.position.x = point[0]
@@ -105,19 +107,14 @@ class DataRegressor():
         self.cloudLock.release()
         print "GPR complete" 
 
-        # Output these in marker format
-        markers = MarkerArray()
-        for i in range(len(X)):
-            marker = self.makeMarker(i, (y_x[i], y_y[i], y_z[i])) 
-            markers.markers.append(marker)
-        self.marker_pub.publish(markers)
 
         # Renormalize
+        markers = MarkerArray()
         guess_lengths = np.linspace(X[0], X[-1], num=500)
         x_coords = self.gp_x.predict(guess_lengths[:, np.newaxis])
         y_coords = self.gp_y.predict(guess_lengths[:, np.newaxis])
         z_coords = self.gp_z.predict(guess_lengths[:, np.newaxis])
-        points = zip(x_coords, y_coords, z_coords) 
+        points = np.vstack((x_coords, y_coords, z_coords)).T 
         prev_pt = points[0]
         lengths = []
         lastlen = 0
@@ -126,15 +123,35 @@ class DataRegressor():
             lastlen = lastlen + added_len
             prev_pt = point
             lengths.append(lastlen)
-        print lengths[-1]
-        print X[-1]
+
+            marker = self.makeMarker(i, point) 
+            markers.markers.append(marker)
+        norm_factor = lengths[-1]/X[-1]
+        lengths = lengths / norm_factor
+        self.marker_pub.publish(markers)
+        print "markers published"
+
+        # Fit spline to normalized curve
+        self.length_fn = lambda x: (np.interp(x, lengths, x_coords), np.interp(x, lengths, y_coords), np.interp(x, lengths, z_coords))
+
+        # Output these in marker format
+        markers = MarkerArray()
+        markers.markers.append(self.makeMarker(0, self.length_fn(0.15),rgb=(0.4,0.4,0.4)))
+        markers.markers.append(self.makeMarker(1,self.length_fn(0.35),rgb=(0.5,0.5,1.0)))
+        markers.markers.append(self.makeMarker(2,self.length_fn(0.55),rgb=(0.5,1.0,0.5)))
+        markers.markers.append(self.makeMarker(3,self.length_fn(0.75),rgb=(0.2,0.5,0.7)))
+        markers.markers.append(self.makeMarker(4,self.length_fn(0.95),rgb=(0.7,0.2,0.7)))
+        self.marker_pub2.publish(markers)
+        print "markers published2"
+        
     
     def run(self):
         rospy.init_node(self.name, anonymous=True)
         #self.pub = rospy.Publisher(self.ptCloudTopicOut, PointCloud2, queue_size=1)
         rospy.Subscriber(self.array_in, MarkerArray, self.fit)    
         rospy.Subscriber(self.cloud_in, PointCloud2, self.updateCloud)
-        self.marker_pub = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
+        self.marker_pub = rospy.Publisher("/gpr_cable", MarkerArray, queue_size=100)
+        self.marker_pub2 = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
         rospy.spin()
 
 if __name__ == '__main__':
