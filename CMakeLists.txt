@@ -130,7 +130,7 @@ include_directories(
 # add_dependencies(pcl_sandbox ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(pcl_sandbox src/pubsub.cpp)
+#add_executable(pcl_sandbox src/pubsub.cpp)
 #add_executable(id_markers src/id_markers.cpp)
 
 ## Add cmake target dependencies of the executable
