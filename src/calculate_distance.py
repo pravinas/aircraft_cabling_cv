@@ -40,8 +40,9 @@ if __name__ == '__main__':
     name = sys.argv[1]
     et = sys.argv[2]
     gtt = sys.argv[3]
+    trigger = sys.argv[4]
     
-    locateBlob = LocateBlob(name, et, gtt)
+    locateBlob = LocateBlob(name, et, gtt, trigger)
     
     locateBlob.run()
     
