@@ -15,5 +15,5 @@
 
     <!-- Find Ground Truth Marker-->
     <node name="find_gt" pkg="$(arg package_name)" type="id_markers.py" args="find_gt $(arg ground_truth_color) $(arg input_pc) /identified_gt" />
-    <node name="gt_marker" pkg="$(arg package_name)" type="k_means.py" args="gt_marker $(arg ground_truth_color) /identified_gt /gt_marker 1" />
+    <node name="gt_marker" pkg="$(arg package_name)" type="find_gt.py" args="gt_marker $(arg ground_truth_color) /identified_gt /gt_marker 5" />
 </launch>
