@@ -12,11 +12,12 @@ import numpy
 
 # Assumes only one blob of color color
 class KMeans:
-    def __init__(self, name, color, ptCloudTopicIn, ptCloudTopicOut):
+    def __init__(self, name, color, ptCloudTopicIn, ptCloudTopicOut, num_means=10):
         self.name = name
         self.color = color
         self.ptCloudTopicIn = ptCloudTopicIn
         self.ptCloudTopicOut = ptCloudTopicOut
+        self.num_means = num_means
         self.pub = None
 
     def k_means(self, msg):
@@ -27,7 +28,7 @@ class KMeans:
             data += [point[0:3]]
 
         data = numpy.array(data)
-        kmeans = KM(n_clusters = 10)
+        kmeans = KM(n_clusters = num_means)
         kmeans.fit(data)
         print kmeans.cluster_centers_
         centers = sorted(kmeans.cluster_centers_, key=lambda p: p[0])
@@ -68,12 +69,14 @@ class KMeans:
         
         
 if __name__ == '__main__':
+    print "Usage: rosrun pcl_sandbox k_means.py <nodename> <color (red/blue)> <cloud in> <marker out> <num means>"
     name = sys.argv[1]
     color = sys.argv[2]
     cloud_topic = sys.argv[3]
     marker_out = sys.argv[4]
+    num_means = int(sys.argv[5])
     
-    kmeans = KMeans(name, color, cloud_topic, marker_out)
+    kmeans = KMeans(name, color, cloud_topic, marker_out, num_means)
     
     kmeans.run()
     

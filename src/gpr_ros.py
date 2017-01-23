@@ -9,8 +9,8 @@ from threading import Lock
 # ROS Imports
 
 import rospy
-import std_msgs.msg
 import sensor_msgs.point_cloud2 as pc2
+from std_msgs.msg import Header, Float32
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -30,6 +30,7 @@ class DataRegressor():
         self.cloud_in = cloud_in
         self.marker_pub = None
         self.marker_pub2 = None
+        self.marker_pub3 = None
         self.cloudLock = threading.Lock() 
         self.cloud = None
         self.frame_id = None
@@ -47,7 +48,7 @@ class DataRegressor():
 
     def makeMarker(self, id_num, point, rgb=(1.0,1.0,1.0)):
         marker = Marker()
-        marker.header = std_msgs.msg.Header()
+        marker.header = Header()
         marker.header.stamp = rospy.Time.now()
         marker.header.frame_id = self.frame_id
         marker.id = id_num
@@ -109,7 +110,7 @@ class DataRegressor():
 
 
         # Renormalize
-        markers = MarkerArray()
+        # markers = MarkerArray()
         guess_lengths = np.linspace(X[0], X[-1], num=500)
         x_coords = self.gp_x.predict(guess_lengths[:, np.newaxis])
         y_coords = self.gp_y.predict(guess_lengths[:, np.newaxis])
@@ -124,34 +125,41 @@ class DataRegressor():
             prev_pt = point
             lengths.append(lastlen)
 
-            marker = self.makeMarker(i, point) 
-            markers.markers.append(marker)
+            # marker = self.makeMarker(i, point) 
+            # markers.markers.append(marker)
         norm_factor = lengths[-1]/X[-1]
         lengths = lengths / norm_factor
-        self.marker_pub.publish(markers)
-        print "markers published"
+        # self.marker_pub.publish(markers)
+        # print "markers published"
 
         # Fit spline to normalized curve
         self.length_fn = lambda x: (np.interp(x, lengths, x_coords), np.interp(x, lengths, y_coords), np.interp(x, lengths, z_coords))
 
         # Output these in marker format
-        markers = MarkerArray()
-        markers.markers.append(self.makeMarker(0, self.length_fn(0.15),rgb=(0.4,0.4,0.4)))
-        markers.markers.append(self.makeMarker(1,self.length_fn(0.35),rgb=(0.5,0.5,1.0)))
-        markers.markers.append(self.makeMarker(2,self.length_fn(0.55),rgb=(0.5,1.0,0.5)))
-        markers.markers.append(self.makeMarker(3,self.length_fn(0.75),rgb=(0.2,0.5,0.7)))
-        markers.markers.append(self.makeMarker(4,self.length_fn(0.95),rgb=(0.7,0.2,0.7)))
-        self.marker_pub2.publish(markers)
-        print "markers published2"
-        
+        # markers = MarkerArray()
+        # markers.markers.append(self.makeMarker(0, self.length_fn(0.15),rgb=(0.4,0.4,0.4)))
+        # markers.markers.append(self.makeMarker(1,self.length_fn(0.35),rgb=(0.5,0.5,1.0)))
+        # markers.markers.append(self.makeMarker(2,self.length_fn(0.55),rgb=(0.5,1.0,0.5)))
+        # markers.markers.append(self.makeMarker(3,self.length_fn(0.75),rgb=(0.2,0.5,0.7)))
+        # markers.markers.append(self.makeMarker(4,self.length_fn(0.95),rgb=(0.7,0.2,0.7)))
+        # self.marker_pub2.publish(markers)
+        # print "markers published2"
+    
+    def find_location(self, float_msg):
+        float_val = float_msg.data
+        if self.length_fn==None:
+            return
+        marker = self.makeMarker(0, self.length_fn(float_val), rgb=(0.8, 0.2, 0.4))
+        self.marker_pub3.publish(marker)
     
     def run(self):
         rospy.init_node(self.name, anonymous=True)
-        #self.pub = rospy.Publisher(self.ptCloudTopicOut, PointCloud2, queue_size=1)
         rospy.Subscriber(self.array_in, MarkerArray, self.fit)    
         rospy.Subscriber(self.cloud_in, PointCloud2, self.updateCloud)
-        self.marker_pub = rospy.Publisher("/gpr_cable", MarkerArray, queue_size=100)
-        self.marker_pub2 = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
+        rospy.Subscriber("/input_floats", Float32, self.find_location)
+        # self.marker_pub = rospy.Publisher("/gpr_cable", MarkerArray, queue_size=100)
+        # self.marker_pub2 = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
+        self.marker_pub3 = rospy.Publisher("/markers_out", Marker, queue_size=100)
         rospy.spin()
 
 if __name__ == '__main__':
