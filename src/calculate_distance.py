@@ -22,15 +22,20 @@ class CalculateDistance:
         e = self.estimation_marker.pose.position
         float_msg = Float32()
         float_msg.data = sqrt((gt.x-e.x)**2 + (gt.y-e.y)**2 + (gt.z-e.z)**2)
-        self.pub(float_msg)
-        
-       
+        self.pub.publish(float_msg)
+
+    def set_em(self, msg):
+        self.estimation_marker=msg
+
+    def set_gm(self, msg):
+        self.ground_truth_marker=msg
+
     def run(self):
         rospy.init_node(self.name, anonymous=True)
         
         self.pub = rospy.Publisher("/distances", Float32, queue_size=1)
-        rospy.Subscriber(self.estimation_topic, Marker, lambda msg: self.estimation_marker=msg)
-        rospy.Subscriber(self.ground_truth_topic, Marker, lambda msg: self.ground_truth_marker=msg)
+        rospy.Subscriber(self.estimation_topic, Marker, self.set_em)
+        rospy.Subscriber(self.ground_truth_topic, Marker, self.set_gm)
         rospy.Subscriber(self.trigger_topic, Float32, self.calculate_vals)
         
         rospy.spin()
@@ -42,7 +47,7 @@ if __name__ == '__main__':
     gtt = sys.argv[3]
     trigger = sys.argv[4]
     
-    locateBlob = LocateBlob(name, et, gtt, trigger)
+    locateBlob = CalculateDistance(name, et, gtt, trigger)
     
     locateBlob.run()
     

@@ -4,19 +4,20 @@
 
     <!-- Initialize Arguments -->
     <arg name="input_pc" default="/camera/depth_registered/points" />
-    <arg name="num_markers" default="10" />
+    <arg name="cable_length" default="1.04" />
+    <arg name="num_markers" default="6" />
     <arg name="cable_marker_color" default="red" />
     <arg name="ground_truth_color" default="blue" />
 
     <!-- Run through normal GPR process -->
     <node name="id_markers" pkg="$(arg package_name)" type="id_markers.py" args="id_markers $(arg cable_marker_color) $(arg input_pc) /identified" />
     <node name="k_means" pkg="$(arg package_name)" type="k_means.py" args="k_means $(arg cable_marker_color) /identified /real_markers $(arg num_markers)" />
-    <node name="gpr_node" pkg="$(arg package_name)" type="gpr_ros.py" args="/real_markers $(arg input_pc)" /> 
+    <node name="gpr_node" pkg="$(arg package_name)" type="gpr_ros.py" args="/real_markers $(arg input_pc) $(arg cable_length)" /> 
 
     <!-- Find Ground Truth Marker-->
     <node name="find_gt" pkg="$(arg package_name)" type="id_markers.py" args="find_gt $(arg ground_truth_color) $(arg input_pc) /identified_gt" />
     <node name="gt_marker" pkg="$(arg package_name)" type="find_gt.py" args="gt_marker $(arg ground_truth_color) /identified_gt /gt_marker 5" />
 
     <!-- Compare Ground Truth to Estimation -->
-    <node name="compare" pkg="$(arg package_name" type="calculate_distance.py" args="compare /markers_out /gt_marker">
+    <node name="compare" pkg="$(arg package_name)" type="calculate_distance.py" args="compare /markers_out /gt_marker /trigger" />
 </launch>

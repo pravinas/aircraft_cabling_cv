@@ -24,10 +24,11 @@ from scipy import spatial, interpolate
 import math
 
 class DataRegressor():
-    def __init__(self, array_in, cloud_in, norm_tolerance=1.1):
+    def __init__(self, array_in, cloud_in, cable_length, norm_tolerance=1.1):
         self.name = "gpr_node" 
         self.array_in = array_in
         self.cloud_in = cloud_in
+        self.cable_length = float(cable_length)
         self.marker_pub = None
         self.marker_pub2 = None
         self.marker_pub3 = None
@@ -110,7 +111,7 @@ class DataRegressor():
 
 
         # Renormalize
-        # markers = MarkerArray()
+        markers = MarkerArray()
         guess_lengths = np.linspace(X[0], X[-1], num=500)
         x_coords = self.gp_x.predict(guess_lengths[:, np.newaxis])
         y_coords = self.gp_y.predict(guess_lengths[:, np.newaxis])
@@ -125,25 +126,28 @@ class DataRegressor():
             prev_pt = point
             lengths.append(lastlen)
 
-            # marker = self.makeMarker(i, point) 
-            # markers.markers.append(marker)
-        norm_factor = lengths[-1]/X[-1]
-        lengths = lengths / norm_factor
-        # self.marker_pub.publish(markers)
-        # print "markers published"
+            marker = self.makeMarker(i, point) 
+            markers.markers.append(marker)
+        norm_factor = lengths[-1]/self.cable_length
+        lengths = np.array(lengths) / norm_factor
+        self.marker_pub.publish(markers)
+        print "markers published"
 
         # Fit spline to normalized curve
-        self.length_fn = lambda x: (np.interp(x, lengths, x_coords), np.interp(x, lengths, y_coords), np.interp(x, lengths, z_coords))
+        self.length_fn = lambda x: (
+                np.interp(self.cable_length - x, lengths, x_coords), 
+                np.interp(self.cable_length - x, lengths, y_coords), 
+                np.interp(self.cable_length - x, lengths, z_coords))
 
         # Output these in marker format
-        # markers = MarkerArray()
-        # markers.markers.append(self.makeMarker(0, self.length_fn(0.15),rgb=(0.4,0.4,0.4)))
-        # markers.markers.append(self.makeMarker(1,self.length_fn(0.35),rgb=(0.5,0.5,1.0)))
-        # markers.markers.append(self.makeMarker(2,self.length_fn(0.55),rgb=(0.5,1.0,0.5)))
-        # markers.markers.append(self.makeMarker(3,self.length_fn(0.75),rgb=(0.2,0.5,0.7)))
-        # markers.markers.append(self.makeMarker(4,self.length_fn(0.95),rgb=(0.7,0.2,0.7)))
-        # self.marker_pub2.publish(markers)
-        # print "markers published2"
+        markers = MarkerArray()
+        markers.markers.append(self.makeMarker(0, self.length_fn(0.15),rgb=(0.4,0.4,0.4)))
+        markers.markers.append(self.makeMarker(1,self.length_fn(0.35),rgb=(0.5,0.5,1.0)))
+        markers.markers.append(self.makeMarker(2,self.length_fn(0.55),rgb=(0.5,1.0,0.5)))
+        markers.markers.append(self.makeMarker(3,self.length_fn(0.75),rgb=(0.2,0.5,0.7)))
+        markers.markers.append(self.makeMarker(4,self.length_fn(0.95),rgb=(0.7,0.2,0.7)))
+        self.marker_pub2.publish(markers)
+        print "markers published2"
     
     def find_location(self, float_msg):
         float_val = float_msg.data
@@ -157,13 +161,14 @@ class DataRegressor():
         rospy.Subscriber(self.array_in, MarkerArray, self.fit)    
         rospy.Subscriber(self.cloud_in, PointCloud2, self.updateCloud)
         rospy.Subscriber("/input_floats", Float32, self.find_location)
-        # self.marker_pub = rospy.Publisher("/gpr_cable", MarkerArray, queue_size=100)
-        # self.marker_pub2 = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
+        self.marker_pub = rospy.Publisher("/gpr_cable", MarkerArray, queue_size=100)
+        self.marker_pub2 = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
         self.marker_pub3 = rospy.Publisher("/markers_out", Marker, queue_size=100)
         rospy.spin()
 
 if __name__ == '__main__':
-    print "Usage: rosrun pcl_sandbox gpr_ros.py <MarkerArray in> <PointCloud2 cable>"
+    print "Usage: rosrun pcl_sandbox gpr_ros.py <MarkerArray in> <PointCloud2 cable> <float cable_length>"
     array_in = sys.argv[1]
     cable_pc = sys.argv[2]
-    DataRegressor(array_in, cable_pc).run()
+    cable_length = sys.argv[3]
+    DataRegressor(array_in, cable_pc, cable_length).run()

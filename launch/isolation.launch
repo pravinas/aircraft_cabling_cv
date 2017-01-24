@@ -1,3 +1,0 @@
-<launch>
-    <node name="isolation" pkg="pcl_sandbox" type="isolation.py" respawn="true" output="screen"/>
-</launch>
