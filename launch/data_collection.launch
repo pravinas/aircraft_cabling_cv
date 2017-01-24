@@ -20,4 +20,6 @@
 
     <!-- Compare Ground Truth to Estimation -->
     <node name="compare" pkg="$(arg package_name)" type="calculate_distance.py" args="compare /markers_out /gt_marker /trigger" />
+
+    <!-- Collect data by sending float values corresponding to lengths along the cable to /input_floats and then triggering the distance calculation to /trigger -->
 </launch>
