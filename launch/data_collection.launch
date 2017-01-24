@@ -4,7 +4,7 @@
 
     <!-- Initialize Arguments -->
     <arg name="input_pc" default="/camera/depth_registered/points" />
-    <arg name="cable_length" default="1.04" />
+    <arg name="cable_length" default="1.02" />
     <arg name="num_markers" default="6" />
     <arg name="cable_marker_color" default="red" />
     <arg name="ground_truth_color" default="blue" />
