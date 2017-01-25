@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
 import sys
+import argparse
 import rospy
 from math import sqrt
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Float32
 
-# Assumes only one blob of color color
 class CalculateDistance:
-    def __init__(self, name, et, gtt, trigger):
-        self.name = name
+    def __init__(self, et, gtt, trigger):
         self.estimation_marker = None
         self.ground_truth_marker = None
         self.estimation_topic = et
@@ -31,7 +30,7 @@ class CalculateDistance:
         self.ground_truth_marker=msg
 
     def run(self):
-        rospy.init_node(self.name, anonymous=True)
+        rospy.init_node("distances_node", anonymous=True)
         
         self.pub = rospy.Publisher("/distances", Float32, queue_size=1)
         rospy.Subscriber(self.estimation_topic, Marker, self.set_em)
@@ -42,12 +41,13 @@ class CalculateDistance:
         
         
 if __name__ == '__main__':
-    name = sys.argv[1]
-    et = sys.argv[2]
-    gtt = sys.argv[3]
-    trigger = sys.argv[4]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-e", "--estimation-topic", help="Marker topic containing estimate")
+    parser.add_argument("-g", "--ground-truth-topic", help="Marker topic containing ground truth data.")
+    parser.add_argument("-t", "--trigger", help="Float topic that will activate distance calculation when any value is passed.")
+    args = parser.parse_args(rospy.myargv()[1:])
     
-    locateBlob = CalculateDistance(name, et, gtt, trigger)
+    locateBlob = CalculateDistance(args.estimation_topic, args_ground_truth_topic, args.trigger)
     
     locateBlob.run()
     

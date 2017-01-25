@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+## @file color_filter.py
+# Filter PointCloud by color
+
 import sys
 import argparse
 import rospy
@@ -10,9 +13,14 @@ from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import PointCloud2, PointField
 from visualization_msgs.msg import Marker
 
-# Assumes only one blob of color color
 class ColorFilter:
     def __init__(self, color, ptCloudTopicIn, ptCloudTopicOut):
+        ## Constructor for ColorFilter
+        # 
+        # @param[in] color  The color to filter for. May only be "red" or "blue"
+        # @param[in] ptCloudTopicIn The point cloud topic to filter.
+        # @param[out] ptCloudTopicOut   The point cloud topic to publish to. 
+
         self.color = color
         self.ptCloudTopicIn = ptCloudTopicIn
         self.ptCloudTopicOut = ptCloudTopicOut
@@ -20,6 +28,9 @@ class ColorFilter:
         
 
     def filter(self, msg):
+        ## Filter a given Point Cloud message
+        # 
+        # @param[in] msg    The sensor_msgs/PointCloud2 message to filter
         points = pc2.read_points(msg, field_names=["x","y","z","rgb"], skip_nans=False)
         points_out = []
 
@@ -81,6 +92,8 @@ class ColorFilter:
             print "no points"
        
     def run(self):
+        ## Run the color filter node
+        
         rospy.init_node("color_filter", anonymous=True)
         
         self.pub = rospy.Publisher(self.ptCloudTopicOut, PointCloud2, queue_size=1)

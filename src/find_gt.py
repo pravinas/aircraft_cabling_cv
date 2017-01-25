@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+## @file find_gt.py
+# @author Pravina Samaratunga
+
 import sys
 import argparse
 import rospy
@@ -13,13 +16,21 @@ from sklearn.cluster import KMeans as KM
 import numpy
 
 class KMeans:
-    def __init__(self, ptCloudTopicIn, markerTopicOut, num_means=5):
-        self.ptCloudTopicIn = ptCloudTopicIn
+    def __init__(self, ptCloudIn, markerTopicOut, num_means=5):
+        ## Constructor for the KMeans class
+        # 
+        # @param[in] ptCloudIn A point cloud topic with clustered data
+        # @param[out] markerTopicOut A marker array topic to publish the cluster centers
+        # @param[in] num_means Number of clusters in the data
+        self.ptCloudTopicIn = ptCloudIn
         self.markerTopicOut = markerTopicOut
         self.num_means = num_means
         self.pub = None
 
     def k_means(self, msg):
+        ## Perform K Means on the data
+        #
+        # @param msg A sensor_msgs/PointCloud2 message with num_means clusters
         points = pc2.read_points(msg, skip_nans=True)
         data = []
 
@@ -42,6 +53,13 @@ class KMeans:
         self.pub.publish(marker)
 
     def makeMarker(self, header, id_num, point):
+        ## Make a std_msgs/Marker object
+        #
+        # @param header A ROS Header object for the marker
+        # @param id_num The id number corresponding to the marker. Note that these must be unique.
+        # #param point An (x,y,z) tuple where the marker should be located in space
+        # 
+        # @return A std_msgs/Marker object
         marker = Marker()
         marker.header = header
         marker.id = id_num
@@ -61,6 +79,7 @@ class KMeans:
         return marker
        
     def run(self):
+        ## Run the color filter node
         rospy.init_node("find_gt_node", anonymous=True)
         
         self.pub = rospy.Publisher(self.markerTopicOut, Marker, queue_size=100)
