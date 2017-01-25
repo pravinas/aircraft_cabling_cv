@@ -21,14 +21,14 @@ class KMeans:
         self.pub = None
 
     def k_means(self, msg):
-        points = pc2.read_points(msg, skip_nans=True)
+        points = pc2.read_points(msg, field_names=["x","y","z","rgb"], skip_nans=True)
         data = []
 
         for point in points:
             data += [point[0:3]]
 
         data = numpy.array(data)
-        kmeans = KM(n_clusters = num_means)
+        kmeans = KM(n_clusters = self.num_means)
         kmeans.fit(data)
         print kmeans.cluster_centers_
         centers = sorted(kmeans.cluster_centers_, key=lambda p: p[0])

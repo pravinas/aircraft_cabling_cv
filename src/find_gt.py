@@ -52,9 +52,9 @@ class KMeans:
         marker.scale.x = 0.03
         marker.scale.y = 0.03
         marker.scale.z = 0.03
-        marker.color.r = 1.0
+        marker.color.r = 0.3
         marker.color.g = 0.2
-        marker.color.b = 0.3
+        marker.color.b = 1.0
         marker.color.a = 1.0
         marker.pose.orientation.w = 1.0
         marker.pose.position.x = point[0]

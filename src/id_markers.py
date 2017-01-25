@@ -20,7 +20,7 @@ class LocateBlob:
         
 
     def locate(self, msg):
-        points = pc2.read_points(msg, field_names=["x","y","z","rgb"], skip_nans=True)
+        points = pc2.read_points(msg, field_names=["x","y","z","rgb"], skip_nans=False)
         points_out = []
 
         xField = PointField()
@@ -64,12 +64,12 @@ class LocateBlob:
             g = (pack & 0x0000FF00) >> 8
             b = (pack & 0x000000FF)
             if self.color == "red":
-                if r > 2.0 * g and r > 1.7 * b and r > 100:
+                if (r>3.0*g and r>2.0*b and r>100) or (r>1.8*g and r>1.8*b and r>220):
                     points_out += [[x,y,z,rgb]]
                     N += 1
             
             if self.color == "blue":
-                if b > 1.7 * g and b > 1.8 * r and b > 100:
+                if (b>1.5*g and b>2.5*r and b>100) or (b>1.2*g and b>1.2*r and b>200):
                     points_out += [[x,y,z,rgb]]
                     N += 1
           

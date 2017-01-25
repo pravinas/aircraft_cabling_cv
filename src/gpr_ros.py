@@ -3,6 +3,7 @@
 # General Imports
 
 import sys
+import math
 import threading
 from threading import Lock 
 
@@ -21,7 +22,6 @@ from matplotlib import pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern 
 from scipy import spatial, interpolate
-import math
 
 class DataRegressor():
     def __init__(self, array_in, cloud_in, cable_length, norm_tolerance=1.1):
@@ -82,13 +82,16 @@ class DataRegressor():
             print "No cloud in buffer when doing processing."
             return
         self.cloudLock.acquire()
+        #cloud_np = np.array(filter(lambda x: math.isnan(x) == False, self.cloud))[:,0:3]
         cloud_np = np.array(list(self.cloud))[:,0:3]
         cloud_kdtree = spatial.KDTree(cloud_np)
         prev_norm = 100
         new_norm = 1
         print "begin loop"
+        qwerty=0
 
         while prev_norm/new_norm > self.norm_tolerance or new_norm/prev_norm > self.norm_tolerance:
+            qwerty+=1
             # Fit GPR Models
             self.gp_x.fit(X[:, np.newaxis], y_x) 
             self.gp_y.fit(X[:, np.newaxis], y_y) 
