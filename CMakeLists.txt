@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(pcl_sandbox)
+project(aircraft_cabling_cv)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -103,7 +103,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES pcl_sandbox
+#  LIBRARIES aircraft_cabling_cv
 #  CATKIN_DEPENDS pcl_conversions pcl_ros roscpp rospy sensor_msgs
 #  DEPENDS system_lib
 )
@@ -120,25 +120,25 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(pcl_sandbox
-#   src/${PROJECT_NAME}/pcl_sandbox.cpp
+# add_library(aircraft_cabling_cv
+#   src/${PROJECT_NAME}/aircraft_cabling_cv.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(pcl_sandbox ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(aircraft_cabling_cv ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-#add_executable(pcl_sandbox src/pubsub.cpp)
+#add_executable(aircraft_cabling_cv src/pubsub.cpp)
 #add_executable(id_markers src/id_markers.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(pcl_sandbox_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(aircraft_cabling_cv_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(pcl_sandbox  ${catkin_LIBRARIES})
+target_link_libraries(aircraft_cabling_cv  ${catkin_LIBRARIES})
 #target_link_libraries(id_markers  ${catkin_LIBRARIES})
 
 #############
@@ -156,7 +156,7 @@ target_link_libraries(pcl_sandbox  ${catkin_LIBRARIES})
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS pcl_sandbox pcl_sandbox_node
+# install(TARGETS aircraft_cabling_cv aircraft_cabling_cv_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -181,7 +181,7 @@ target_link_libraries(pcl_sandbox  ${catkin_LIBRARIES})
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_pcl_sandbox.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_aircraft_cabling_cv.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

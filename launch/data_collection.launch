@@ -1,6 +1,6 @@
 <launch>
     <!-- Package information -->
-    <arg name="package_name" value="pcl_sandbox" />
+    <arg name="package_name" value="aircraft_cabling_cv" />
 
     <!-- Initialize Arguments -->
     <arg name="input_pc" default="/camera/depth_registered/points" />
