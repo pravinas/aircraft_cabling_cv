@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import argparse
 import rospy
 import sensor_msgs.point_cloud2 as pc2
 import ctypes
@@ -10,16 +11,15 @@ from sensor_msgs.msg import PointCloud2, PointField
 from visualization_msgs.msg import Marker
 
 # Assumes only one blob of color color
-class LocateBlob:
-    def __init__(self, name, color, ptCloudTopicIn, ptCloudTopicOut):
-        self.name = name
+class ColorFilter:
+    def __init__(self, color, ptCloudTopicIn, ptCloudTopicOut):
         self.color = color
         self.ptCloudTopicIn = ptCloudTopicIn
         self.ptCloudTopicOut = ptCloudTopicOut
         self.pub = None
         
 
-    def locate(self, msg):
+    def filter(self, msg):
         points = pc2.read_points(msg, field_names=["x","y","z","rgb"], skip_nans=False)
         points_out = []
 
@@ -81,22 +81,21 @@ class LocateBlob:
             print "no points"
        
     def run(self):
-        rospy.init_node(self.name, anonymous=True)
+        rospy.init_node("color_filter", anonymous=True)
         
         self.pub = rospy.Publisher(self.ptCloudTopicOut, PointCloud2, queue_size=1)
-        rospy.Subscriber(self.ptCloudTopicIn, PointCloud2, self.locate)    
+        rospy.Subscriber(self.ptCloudTopicIn, PointCloud2, self.filter)    
         
         rospy.spin()
         
         
 if __name__ == '__main__':
-    print "Usage: rosrun pcl_sandbox id_markers.py <nodename> <color (red/blue)> <PointCloud2 topic in> <PointCloud2 topic out>"
-    name = sys.argv[1]
-    color = sys.argv[2]
-    cloud_topic = sys.argv[3]
-    cloud_topic_out = sys.argv[4]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--color", choices=["red","blue"], help="Color to filter (red/blue)", required=True)
+    parser.add_argument("-i", "--input", help="Input sensor_msgs/PointCloud2 topic", default="/camera/depth_registered/points")
+    parser.add_argument("-o", "--output", help="Filtered point cloud output topic", default="/cv/filtered/")
+    args = parser.parse_args(rospy.myargv()[1:])
     
-    locateBlob = LocateBlob(name, color, cloud_topic, cloud_topic_out)
-    
-    locateBlob.run()
+    colorFilter = ColorFilter(args.color, args.input, args.output)
+    colorFilter.run()
     

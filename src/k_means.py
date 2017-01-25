@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import argparse
 import rospy
 import sensor_msgs.point_cloud2 as pc2
 import ctypes
@@ -12,9 +13,7 @@ import numpy
 
 # Assumes only one blob of color color
 class KMeans:
-    def __init__(self, name, color, ptCloudTopicIn, ptCloudTopicOut, num_means=10):
-        self.name = name
-        self.color = color
+    def __init__(self, ptCloudTopicIn, ptCloudTopicOut, num_means=10):
         self.ptCloudTopicIn = ptCloudTopicIn
         self.ptCloudTopicOut = ptCloudTopicOut
         self.num_means = num_means
@@ -60,7 +59,7 @@ class KMeans:
         return marker
        
     def run(self):
-        rospy.init_node(self.name, anonymous=True)
+        rospy.init_node("k_means", anonymous=True)
         
         self.pub = rospy.Publisher(self.ptCloudTopicOut, MarkerArray, queue_size=100)
         rospy.Subscriber(self.ptCloudTopicIn, PointCloud2, self.k_means)    
@@ -69,14 +68,12 @@ class KMeans:
         
         
 if __name__ == '__main__':
-    print "Usage: rosrun pcl_sandbox k_means.py <nodename> <color (red/blue)> <cloud in> <marker out> <num means>"
-    name = sys.argv[1]
-    color = sys.argv[2]
-    cloud_topic = sys.argv[3]
-    marker_out = sys.argv[4]
-    num_means = int(sys.argv[5])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input", help="The input sensor_msgs/PointCloud2 topic to find the means", default="/cv/filtered")
+    parser.add_argument("-o", "--output", help="The output std_msgs/MarkerArray topic for the means.", default="/cv/kmeans")
+    parser.add_argument("-n", "--num-means", help="Number of means to find", type=int, default=10)
+    args = parser.parse_args(rospy.myargv()[1:])
     
-    kmeans = KMeans(name, color, cloud_topic, marker_out, num_means)
-    
+    kmeans = KMeans(args.input, args.output, args.num_means)
     kmeans.run()
     

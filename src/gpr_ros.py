@@ -3,6 +3,7 @@
 # General Imports
 
 import sys
+import argparse
 import math
 import threading
 from threading import Lock 
@@ -160,18 +161,22 @@ class DataRegressor():
         self.marker_pub3.publish(marker)
     
     def run(self):
+        # TODO: Make topic names command line arguments, and add a debug option
         rospy.init_node(self.name, anonymous=True)
         rospy.Subscriber(self.array_in, MarkerArray, self.fit)    
         rospy.Subscriber(self.cloud_in, PointCloud2, self.updateCloud)
-        rospy.Subscriber("/input_floats", Float32, self.find_location)
-        self.marker_pub = rospy.Publisher("/gpr_cable", MarkerArray, queue_size=100)
-        self.marker_pub2 = rospy.Publisher("/gpr_markers", MarkerArray, queue_size=100)
-        self.marker_pub3 = rospy.Publisher("/markers_out", Marker, queue_size=100)
+        rospy.Subscriber("/cv/gpr/input_floats", Float32, self.find_location)
+        self.marker_pub = rospy.Publisher("/cv/gpr/cable_markers", MarkerArray, queue_size=100)
+        self.marker_pub2 = rospy.Publisher("/cv/gpr/debug_markers", MarkerArray, queue_size=100)
+        self.marker_pub3 = rospy.Publisher("/cv/gpr/marker_estimate", Marker, queue_size=100)
         rospy.spin()
 
 if __name__ == '__main__':
-    print "Usage: rosrun pcl_sandbox gpr_ros.py <MarkerArray in> <PointCloud2 cable> <float cable_length>"
-    array_in = sys.argv[1]
-    cable_pc = sys.argv[2]
-    cable_length = sys.argv[3]
-    DataRegressor(array_in, cable_pc, cable_length).run()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--markers-in", help="std_msgs/MarkerArray topic containing points along the cable.", default="/cv/kmeans")
+    parser.add_argument("-c", "--cloud-in", help="Source sensor_msgs/PointCloud2 topic", default = "/camera/depth_registered/points")
+    parser.add_argument("-l", "--length", help="Total length of the cable in meters.", type=float, default=1.0)
+    args = parser.parse_args(rospy.myargv()[1:])
+    
+    dataRegressor = DataRegressor(args.markers_in, args.cloud_in, args.length)
+    dataRegressor.run()

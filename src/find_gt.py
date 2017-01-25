@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import argparse
 import rospy
 import sensor_msgs.point_cloud2 as pc2
 import ctypes
@@ -11,11 +12,8 @@ from visualization_msgs.msg import Marker, MarkerArray
 from sklearn.cluster import KMeans as KM
 import numpy
 
-# Assumes only one blob of color color
 class KMeans:
-    def __init__(self, name, color, ptCloudTopicIn, markerTopicOut, num_means=5):
-        self.name = name
-        self.color = color
+    def __init__(self, ptCloudTopicIn, markerTopicOut, num_means=5):
         self.ptCloudTopicIn = ptCloudTopicIn
         self.markerTopicOut = markerTopicOut
         self.num_means = num_means
@@ -29,7 +27,7 @@ class KMeans:
             data += [point[0:3]]
 
         data = numpy.array(data)
-        kmeans = KM(n_clusters = num_means)
+        kmeans = KM(n_clusters = self.num_means)
         kmeans.fit(data)
         print kmeans.cluster_centers_
         counts = []
@@ -63,7 +61,7 @@ class KMeans:
         return marker
        
     def run(self):
-        rospy.init_node(self.name, anonymous=True)
+        rospy.init_node("find_gt_node", anonymous=True)
         
         self.pub = rospy.Publisher(self.markerTopicOut, Marker, queue_size=100)
         rospy.Subscriber(self.ptCloudTopicIn, PointCloud2, self.k_means)    
@@ -72,14 +70,12 @@ class KMeans:
         
         
 if __name__ == '__main__':
-    print "Usage: rosrun pcl_sandbox k_means.py <nodename> <color (red/blue)> <cloud in> <marker out> <num means>"
-    name = sys.argv[1]
-    color = sys.argv[2]
-    cloud_topic = sys.argv[3]
-    marker_out = sys.argv[4]
-    num_means = int(sys.argv[5])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input", help="The input sensor_msgs/PointCloud2 topic to find the means", default="/cv/filtered")
+    parser.add_argument("-o", "--output", help="The output std_msgs/MarkerArray topic for the means.", default="/cv/gt_marker")
+    parser.add_argument("-n", "--num-means", help="Number of means to find", type=int, default=5)
+    args = parser.parse_args(rospy.myargv()[1:])
     
-    kmeans = KMeans(name, color, cloud_topic, marker_out, num_means)
-    
+    kmeans = KMeans(args.input, args.output, args.num_means)
     kmeans.run()
     
