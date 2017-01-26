@@ -8,12 +8,13 @@
     <arg name="num_markers" default="11" />
     <arg name="cable_marker_color" default="red" />
     <arg name="ground_truth_color" default="blue" />
-    <arg name="num_reconstruction_pts" default="500" />
+    <arg name="num_reconstruction_pts" default="250" />
+    <arg name="tolerance" default="1.05" />
 
     <!-- Run through normal GPR process -->
     <node name="$(arg cable_marker_color)_filter" pkg="$(arg package_name)" type="color_filter.py" args="-c $(arg cable_marker_color) -i  $(arg input_pc) -o /cv/filtered/$(arg cable_marker_color)" />
     <node name="k_means" pkg="$(arg package_name)" type="k_means.py" args="-i /cv/filtered/$(arg cable_marker_color) -o /cv/kmeans -n $(arg num_markers)" />
-    <node name="gpr_node" pkg="$(arg package_name)" type="gpr_ros.py" args="-a /cv/kmeans/ -c $(arg input_pc) -l $(arg cable_length) -n $(arg num_reconstruction_pts)" /> 
+    <node name="gpr_node" pkg="$(arg package_name)" type="gpr_ros.py" args="-a /cv/kmeans/ -c $(arg input_pc) -l $(arg cable_length) -n $(arg num_reconstruction_pts) -t $(arg tolerance)" /> 
 
     <!-- Find Ground Truth Marker-->
     <node name="filter_gt" pkg="$(arg package_name)" type="color_filter.py" args="-c $(arg ground_truth_color) -i $(arg input_pc) -o /cv/filtered/$(arg ground_truth_color)" />
