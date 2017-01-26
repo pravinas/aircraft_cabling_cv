@@ -47,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--trigger", help="Float topic that will activate distance calculation when any value is passed.")
     args = parser.parse_args(rospy.myargv()[1:])
     
-    locateBlob = CalculateDistance(args.estimation_topic, args_ground_truth_topic, args.trigger)
+    locateBlob = CalculateDistance(args.estimation_topic, args.ground_truth_topic, args.trigger)
     
     locateBlob.run()
     

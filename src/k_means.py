@@ -54,7 +54,7 @@ class KMeans:
         #
         # @param header A ROS Header object for the marker
         # @param id_num The id number corresponding to the marker. Note that these must be unique.
-        # #param point An (x,y,z) tuple where the marker should be located in space
+        # @param point An (x,y,z) tuple where the marker should be located in space
         # 
         # @return A std_msgs/Marker object
 

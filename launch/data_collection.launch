@@ -19,5 +19,5 @@
     <node name="gt_marker" pkg="$(arg package_name)" type="find_gt.py" args="-i /cv/filtered/$(arg ground_truth_color) -o /cv/find_gt/gt_marker" />
 
     <!-- Compare Ground Truth to Estimation -->
-    <node name="compare" pkg="$(arg package_name)" type="calculate_distance.py" args="compare /cv/gpr/marker_estimate /cv/find_gt/gt_marker /trigger" />
+    <node name="compare" pkg="$(arg package_name)" type="calculate_distance.py" args="-e /cv/gpr/marker_estimate -g /cv/find_gt/gt_marker -t /trigger" />
 </launch>

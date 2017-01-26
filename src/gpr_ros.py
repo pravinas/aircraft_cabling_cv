@@ -25,30 +25,51 @@ from sklearn.gaussian_process.kernels import Matern
 from scipy import spatial, interpolate
 
 class DataRegressor():
-    def __init__(self, array_in, cloud_in, cable_length, norm_tolerance=1.1):
+    def __init__(self, array_in, cloud_in, cable_length, debug=True, norm_tolerance=1.1):
+        ## Constructor for the DataRegressor Class
+        # 
+        # @param[in] array_in MarkerArray topic corresponding to physical markers on cable
+        # @param[in] cloud_in PointCloud2 topic containing at least the whole cable
+        # @param[in] cable_length Length of the cable in meters
+        # @param[in] norm_tolerance Error tolerance between successive iterations of GPR.
         self.name = "gpr_node" 
         self.array_in = array_in
         self.cloud_in = cloud_in
         self.cable_length = float(cable_length)
+        self.debug = debug
+        self.norm_tolerance = norm_tolerance
         self.marker_pub = None
-        self.marker_pub2 = None
-        self.marker_pub3 = None
+
+        if self.debug:
+            self.cable_pub = None
+
         self.cloudLock = threading.Lock() 
         self.cloud = None
         self.frame_id = None
         self.length_fn = None
-        self.norm_tolerance = norm_tolerance # The max ratio between norms. Should be > 1
         self.gp_x = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
         self.gp_y = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
         self.gp_z = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
 
     def updateCloud(self, cloud_msg):
+        ## Process and store cloud
+        #
+        # @param[in] cloud_msg PointCloud2 message.
+        
         locked = self.cloudLock.acquire(False)
         if (locked):
             self.cloud = pc2.read_points(cloud_msg, skip_nans=True)
             self.cloudLock.release()
 
     def makeMarker(self, id_num, point, rgb=(1.0,1.0,1.0)):
+        ## Make a std_msgs/Marker object
+        #
+        # @param id_num The id number corresponding to the marker. Note that these must be unique.
+        # @param point An (x,y,z) tuple where the marker should be located in space
+        # @param rgb A tuple corresponding to the RGB values on a scale from 0.0 to 1.0
+        # 
+        # @return A std_msgs/Marker object
+
         marker = Marker()
         marker.header = Header()
         marker.header.stamp = rospy.Time.now()
@@ -70,6 +91,18 @@ class DataRegressor():
         return marker
 
     def fit(self, marker_array_msg):
+        ## Fit function to marker array data.
+        #
+        # This function assumes that the cloud data is 
+        # already populated, and that the markers are sorted
+        # in order of their direction along the cable.
+        #
+        # After fitting GPR to the initial MarkerArray, we read
+        # and refine the curve to find the nearest point in the 
+        # PointCloud to the midpoint between two points.
+        #
+        # @param[in] marker_array_msg The MarkerArray that triggered this function.
+
         # Initialize setup
         marker_array = np.array(marker_array_msg.markers)
         self.frame_id = marker_array[0].header.frame_id
@@ -89,10 +122,10 @@ class DataRegressor():
         prev_norm = 100
         new_norm = 1
         print "begin loop"
-        qwerty=0
+        num_iterations_yet=0
 
         while prev_norm/new_norm > self.norm_tolerance or new_norm/prev_norm > self.norm_tolerance:
-            qwerty+=1
+            num_iterations_yet+=1
             # Fit GPR Models
             self.gp_x.fit(X[:, np.newaxis], y_x) 
             self.gp_y.fit(X[:, np.newaxis], y_y) 
@@ -111,11 +144,14 @@ class DataRegressor():
             prev_norm = new_norm
             new_norm =  np.linalg.norm(distances, np.inf)
         self.cloudLock.release()
+        if self.debug:
+            print >> sys.stderr, num_iterations_yet
         print "GPR complete" 
 
 
         # Renormalize
-        markers = MarkerArray()
+        if self.debug:
+            markers = MarkerArray()
         guess_lengths = np.linspace(X[0], X[-1], num=500)
         x_coords = self.gp_x.predict(guess_lengths[:, np.newaxis])
         y_coords = self.gp_y.predict(guess_lengths[:, np.newaxis])
@@ -130,45 +166,46 @@ class DataRegressor():
             prev_pt = point
             lengths.append(lastlen)
 
-            marker = self.makeMarker(i, point) 
-            markers.markers.append(marker)
+            if self.debug:
+                marker = self.makeMarker(i, point) 
+                markers.markers.append(marker)
         norm_factor = lengths[-1]/self.cable_length
         lengths = np.array(lengths) / norm_factor
-        self.marker_pub.publish(markers)
-        print "markers published"
+        if self.debug:
+            self.cable_pub.publish(markers)
 
         # Fit spline to normalized curve
-        self.length_fn = lambda x: (
-                np.interp(self.cable_length - x, lengths, x_coords), 
-                np.interp(self.cable_length - x, lengths, y_coords), 
-                np.interp(self.cable_length - x, lengths, z_coords))
+        self.length_fn = lambda l: (
+                np.interp(self.cable_length - l, lengths, x_coords), 
+                np.interp(self.cable_length - l, lengths, y_coords), 
+                np.interp(self.cable_length - l, lengths, z_coords))
 
-        # Output these in marker format
-        markers = MarkerArray()
-        markers.markers.append(self.makeMarker(0, self.length_fn(0.15),rgb=(0.4,0.4,0.4)))
-        markers.markers.append(self.makeMarker(1,self.length_fn(0.35),rgb=(0.5,0.5,1.0)))
-        markers.markers.append(self.makeMarker(2,self.length_fn(0.55),rgb=(0.5,1.0,0.5)))
-        markers.markers.append(self.makeMarker(3,self.length_fn(0.75),rgb=(0.2,0.5,0.7)))
-        markers.markers.append(self.makeMarker(4,self.length_fn(0.95),rgb=(0.7,0.2,0.7)))
-        self.marker_pub2.publish(markers)
-        print "markers published2"
+        
+    ## @fn DataRegressor.length_fn(l)
+    # @brief Parametric function describing the shape of the cable
+    # @param[in] l length along the cable to find coordinate of
+    # @return (x,y,z) location of location along the cable
     
     def find_location(self, float_msg):
+        ## Finds where a given value along the cable is
+        #
+        # @param[in] float_msg std_msgs/Float32 message containing length along cable
+        # @return Marker corresponding to the location of that float
         float_val = float_msg.data
         if self.length_fn==None:
             return
         marker = self.makeMarker(0, self.length_fn(float_val), rgb=(0.8, 0.2, 0.4))
-        self.marker_pub3.publish(marker)
+        self.marker_pub.publish(marker)
     
     def run(self):
-        # TODO: Make topic names command line arguments, and add a debug option
+        ## Run ROS node
         rospy.init_node(self.name, anonymous=True)
         rospy.Subscriber(self.array_in, MarkerArray, self.fit)    
         rospy.Subscriber(self.cloud_in, PointCloud2, self.updateCloud)
         rospy.Subscriber("/cv/gpr/input_floats", Float32, self.find_location)
-        self.marker_pub = rospy.Publisher("/cv/gpr/cable_markers", MarkerArray, queue_size=100)
-        self.marker_pub2 = rospy.Publisher("/cv/gpr/debug_markers", MarkerArray, queue_size=100)
-        self.marker_pub3 = rospy.Publisher("/cv/gpr/marker_estimate", Marker, queue_size=100)
+        self.marker_pub = rospy.Publisher("/cv/gpr/marker_estimate", Marker, queue_size=100)
+        if self.debug:
+            self.cable_pub = rospy.Publisher("/cv/gpr/debug_markers", MarkerArray, queue_size=100)
         rospy.spin()
 
 if __name__ == '__main__':
@@ -176,7 +213,9 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--markers-in", help="std_msgs/MarkerArray topic containing points along the cable.", default="/cv/kmeans")
     parser.add_argument("-c", "--cloud-in", help="Source sensor_msgs/PointCloud2 topic", default = "/camera/depth_registered/points")
     parser.add_argument("-l", "--length", help="Total length of the cable in meters.", type=float, default=1.0)
+    parser.add_argument("-d", "--debug", help="Set flag if debug output should be shown", action="store_true")
+    parser.add_argument("-t", "--tolerance", help="Ratio between successive approximations of GPR. Must be greater than 1, but not by much.", default=1.1, type=float)
     args = parser.parse_args(rospy.myargv()[1:])
     
-    dataRegressor = DataRegressor(args.markers_in, args.cloud_in, args.length)
+    dataRegressor = DataRegressor(args.markers_in, args.cloud_in, args.length, debug=args.debug, norm_tolerance=args.tolerance)
     dataRegressor.run()
