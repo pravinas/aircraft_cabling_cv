@@ -25,31 +25,39 @@ from sklearn.gaussian_process.kernels import Matern
 from scipy import spatial, interpolate
 
 class DataRegressor():
-    def __init__(self, array_in, cloud_in, cable_length, debug=True, norm_tolerance=1.1):
+    def __init__(self, array_in, cloud_in, float_stream, cable_out, marker_out, cable_length, norm_tolerance, num_pts, length_scale):
         ## Constructor for the DataRegressor Class
         # 
         # @param[in] array_in MarkerArray topic corresponding to physical markers on cable
         # @param[in] cloud_in PointCloud2 topic containing at least the whole cable
+        # @param[in] float_stream Float32 topic for calculating length along the cable
+        # @param[out] cable_out MarkerArray topic for publishing the cable reconstruction
+        # @param[out] marker_out Marker topic for publishing specified locations along the cable
         # @param[in] cable_length Length of the cable in meters
         # @param[in] norm_tolerance Error tolerance between successive iterations of GPR.
-        self.name = "gpr_node" 
+        # @param[in] num_pts Number of points to create the cable reconstruction.
+        # @param[in] length_scale GPR length scale value
+
         self.array_in = array_in
         self.cloud_in = cloud_in
-        self.cable_length = float(cable_length)
-        self.debug = debug
+        self.cable_length = cable_length
         self.norm_tolerance = norm_tolerance
-        self.marker_pub = None
-
-        if self.debug:
-            self.cable_pub = None
+        self.num_pts = num_pts
+        self.float_stream = float_stream
+        self.cable_topic = cable_out
+        self.estimate_topic = marker_out
 
         self.cloudLock = threading.Lock() 
         self.cloud = None
         self.frame_id = None
         self.length_fn = None
-        self.gp_x = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
-        self.gp_y = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
-        self.gp_z = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=0.05, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
+
+        self.marker_pub = None
+        self.cable_pub = None
+
+        self.gp_x = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=length_scale, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
+        self.gp_y = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=length_scale, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
+        self.gp_z = GaussianProcessRegressor(kernel=1.0 * Matern(length_scale=length_scale, length_scale_bounds=(1e-1, 10.0), nu=1.5)) 
 
     def updateCloud(self, cloud_msg):
         ## Process and store cloud
@@ -144,15 +152,13 @@ class DataRegressor():
             prev_norm = new_norm
             new_norm =  np.linalg.norm(distances, np.inf)
         self.cloudLock.release()
-        if self.debug:
-            print >> sys.stderr, num_iterations_yet
+        #print >> sys.stderr, num_iterations_yet
         print "GPR complete" 
 
 
         # Renormalize
-        if self.debug:
-            markers = MarkerArray()
-        guess_lengths = np.linspace(X[0], X[-1], num=500)
+        markers = MarkerArray()
+        guess_lengths = np.linspace(X[0], X[-1], num=self.num_pts)
         x_coords = self.gp_x.predict(guess_lengths[:, np.newaxis])
         y_coords = self.gp_y.predict(guess_lengths[:, np.newaxis])
         z_coords = self.gp_z.predict(guess_lengths[:, np.newaxis])
@@ -166,13 +172,11 @@ class DataRegressor():
             prev_pt = point
             lengths.append(lastlen)
 
-            if self.debug:
-                marker = self.makeMarker(i, point) 
-                markers.markers.append(marker)
+            marker = self.makeMarker(i, point) 
+            markers.markers.append(marker)
         norm_factor = lengths[-1]/self.cable_length
         lengths = np.array(lengths) / norm_factor
-        if self.debug:
-            self.cable_pub.publish(markers)
+        self.cable_pub.publish(markers)
 
         # Fit spline to normalized curve
         self.length_fn = lambda l: (
@@ -199,23 +203,26 @@ class DataRegressor():
     
     def run(self):
         ## Run ROS node
-        rospy.init_node(self.name, anonymous=True)
+        rospy.init_node("gpr_node", anonymous=True)
         rospy.Subscriber(self.array_in, MarkerArray, self.fit)    
         rospy.Subscriber(self.cloud_in, PointCloud2, self.updateCloud)
-        rospy.Subscriber("/cv/gpr/input_floats", Float32, self.find_location)
-        self.marker_pub = rospy.Publisher("/cv/gpr/marker_estimate", Marker, queue_size=100)
-        if self.debug:
-            self.cable_pub = rospy.Publisher("/cv/gpr/debug_markers", MarkerArray, queue_size=100)
+        rospy.Subscriber(self.float_stream, Float32, self.find_location)
+        self.marker_pub = rospy.Publisher(self.estimate_topic, Marker, queue_size=100)
+        self.cable_pub = rospy.Publisher(self.cable_topic, MarkerArray, queue_size=100)
         rospy.spin()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-m", "--markers-in", help="std_msgs/MarkerArray topic containing points along the cable.", default="/cv/kmeans")
+    parser.add_argument("-a", "--array-in", help="std_msgs/MarkerArray topic containing points along the cable.", default="/cv/kmeans")
     parser.add_argument("-c", "--cloud-in", help="Source sensor_msgs/PointCloud2 topic", default = "/camera/depth_registered/points")
+    parser.add_argument("-f", "--float-stream", help="std_msgs/Float32 topic for which to output markers on the cable", default="/cv/gpr/input_floats")
     parser.add_argument("-l", "--length", help="Total length of the cable in meters.", type=float, default=1.0)
-    parser.add_argument("-d", "--debug", help="Set flag if debug output should be shown", action="store_true")
+    parser.add_argument("-m", "--marker-out", help="std_msgs/Marker topic on which the estimated position of lengths specified by the input float stream is published. See also -o", default="/cv/gpr/marker_estimate")
+    parser.add_argument("-n", "--reconstruction-points", help="The number of points to be used in the reconstruction of the cable.", default=500, type=int)
+    parser.add_argument("-o", "--cable-out", help="std_msgs/MarkerArray topic on which to output the GPR reconstruction of the cable", default="/cv/gpr/cable_reconstruction")
     parser.add_argument("-t", "--tolerance", help="Ratio between successive approximations of GPR. Must be greater than 1, but not by much.", default=1.1, type=float)
+    parser.add_argument("--length-scale", help="GPR length scale parameter for Matern kernel", default=0.05, type=float)
     args = parser.parse_args(rospy.myargv()[1:])
     
-    dataRegressor = DataRegressor(args.markers_in, args.cloud_in, args.length, debug=args.debug, norm_tolerance=args.tolerance)
+    dataRegressor = DataRegressor(args.array_in, args.cloud_in, args.float_stream, args.cable_out, args.marker_out, args.length, args.tolerance, args.reconstruction_points, args.length_scale)
     dataRegressor.run()
