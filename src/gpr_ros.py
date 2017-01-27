@@ -5,6 +5,7 @@
 import sys
 import argparse
 import math
+import time
 import threading
 from threading import Lock 
 
@@ -25,7 +26,7 @@ from sklearn.gaussian_process.kernels import Matern
 from scipy import spatial, interpolate
 
 class DataRegressor():
-    def __init__(self, array_in, cloud_in, float_stream, cable_out, marker_out, cable_length, norm_tolerance, num_pts, length_scale):
+    def __init__(self, array_in, cloud_in, float_stream, cable_out, marker_out, cable_length, norm_tolerance, num_pts, length_scale, debug):
         ## Constructor for the DataRegressor Class
         # 
         # @param[in] array_in MarkerArray topic corresponding to physical markers on cable
@@ -37,6 +38,7 @@ class DataRegressor():
         # @param[in] norm_tolerance Error tolerance between successive iterations of GPR.
         # @param[in] num_pts Number of points to create the cable reconstruction.
         # @param[in] length_scale GPR length scale value
+        # @param[in] debug Set debug flag
 
         self.array_in = array_in
         self.cloud_in = cloud_in
@@ -46,8 +48,11 @@ class DataRegressor():
         self.float_stream = float_stream
         self.cable_topic = cable_out
         self.estimate_topic = marker_out
+        self.debug = debug
 
+        self.cloudTimer = time.clock()
         self.cloudLock = threading.Lock() 
+        self.cloudTimeout = 3.0
         self.cloud = None
         self.frame_id = None
         self.length_fn = None
@@ -64,7 +69,13 @@ class DataRegressor():
         #
         # @param[in] cloud_msg PointCloud2 message.
         
+        currtime = time.clock()
+        # if currtime - self.cloudTimer < self.cloudTimeout:
+        #     print >> sys.stderr, "pc not taken"
+        #     return
+        # print >> sys.stderr, "pc taken"
         locked = self.cloudLock.acquire(False)
+        self.cloudTimer = currtime
         if (locked):
             self.cloud = pc2.read_points(cloud_msg, skip_nans=True)
             self.cloudLock.release()
@@ -112,6 +123,7 @@ class DataRegressor():
         # @param[in] marker_array_msg The MarkerArray that triggered this function.
 
         # Initialize setup
+        fittime = time.clock()
         marker_array = np.array(marker_array_msg.markers)
         self.frame_id = marker_array[0].header.frame_id
         X = np.array([0.1* marker.id for marker in marker_array])
@@ -121,7 +133,7 @@ class DataRegressor():
 
         # Interpolate and refine
         if self.cloud == None:
-            print "No cloud in buffer when doing processing."
+            print >> sys.stderr, "No cloud in buffer when doing processing."
             return
         self.cloudLock.acquire()
         #cloud_np = np.array(filter(lambda x: math.isnan(x) == False, self.cloud))[:,0:3]
@@ -152,8 +164,8 @@ class DataRegressor():
             prev_norm = new_norm
             new_norm =  np.linalg.norm(distances, np.inf)
         self.cloudLock.release()
-        #print >> sys.stderr, num_iterations_yet
-        print "GPR complete" 
+        if self.debug:
+            print >> sys.stderr, "GPR Iter: " + str(num_iterations_yet)
 
 
         # Renormalize
@@ -184,6 +196,10 @@ class DataRegressor():
                 np.interp(self.cable_length - l, lengths, y_coords), 
                 np.interp(self.cable_length - l, lengths, z_coords))
 
+        donetime = time.clock()
+        if self.debug:
+            print >> sys.stderr, "Fit time: " + str(donetime-fittime)
+
         
     ## @fn DataRegressor.length_fn(l)
     # @brief Parametric function describing the shape of the cable
@@ -195,11 +211,15 @@ class DataRegressor():
         #
         # @param[in] float_msg std_msgs/Float32 message containing length along cable
         # @return Marker corresponding to the location of that float
+        fltime = time.clock()
         float_val = float_msg.data
         if self.length_fn==None:
             return
         marker = self.makeMarker(0, self.length_fn(float_val), rgb=(0.8, 0.2, 0.4))
         self.marker_pub.publish(marker)
+        donetime = time.clock()
+        if self.debug:
+            print >> sys.stderr, "Est time: " + str(donetime - fltime)
     
     def run(self):
         ## Run ROS node
@@ -215,6 +235,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--array-in", help="std_msgs/MarkerArray topic containing points along the cable.", default="/cv/kmeans")
     parser.add_argument("-c", "--cloud-in", help="Source sensor_msgs/PointCloud2 topic", default = "/camera/depth_registered/points")
+    parser.add_argument("-d", "--debug", help="Print debug output for this node.", action="store_true")
     parser.add_argument("-f", "--float-stream", help="std_msgs/Float32 topic for which to output markers on the cable", default="/cv/gpr/input_floats")
     parser.add_argument("-l", "--length", help="Total length of the cable in meters.", type=float, default=1.0)
     parser.add_argument("-m", "--marker-out", help="std_msgs/Marker topic on which the estimated position of lengths specified by the input float stream is published. See also -o", default="/cv/gpr/marker_estimate")
@@ -224,5 +245,5 @@ if __name__ == '__main__':
     parser.add_argument("--length-scale", help="GPR length scale parameter for Matern kernel", default=0.05, type=float)
     args = parser.parse_args(rospy.myargv()[1:])
     
-    dataRegressor = DataRegressor(args.array_in, args.cloud_in, args.float_stream, args.cable_out, args.marker_out, args.length, args.tolerance, args.reconstruction_points, args.length_scale)
+    dataRegressor = DataRegressor(args.array_in, args.cloud_in, args.float_stream, args.cable_out, args.marker_out, args.length, args.tolerance, args.reconstruction_points, args.length_scale, args.debug)
     dataRegressor.run()

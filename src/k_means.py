@@ -4,6 +4,7 @@
 # @author Pravina Samaratunga
 
 import sys
+import time
 import argparse
 import rospy
 import sensor_msgs.point_cloud2 as pc2
@@ -15,7 +16,7 @@ from sklearn.cluster import KMeans as KM
 import numpy
 
 class KMeans:
-    def __init__(self, ptCloudIn, markerArrayOut, num_means=10):
+    def __init__(self, ptCloudIn, markerArrayOut, num_means=10, debug=False):
         ## Constructor for the KMeans class
         # 
         # @param[in] ptCloudIn A point cloud topic with clustered data
@@ -24,12 +25,14 @@ class KMeans:
         self.ptCloudTopicIn = ptCloudIn
         self.markerArrayTopicOut = markerArrayOut
         self.num_means = num_means
+        self.debug = debug
         self.pub = None
 
     def k_means(self, msg):
         ## Perform K Means on the data
         #
         # @param msg A sensor_msgs/PointCloud2 message with num_means clusters
+        starttime = time.clock()
         points = pc2.read_points(msg, field_names=["x","y","z","rgb"], skip_nans=True)
         data = []
 
@@ -48,6 +51,10 @@ class KMeans:
             markers.markers.append(centerMarker)
 
         self.pub.publish(markers)
+        
+        endtime = time.clock()
+        if self.debug:
+            print >> sys.stderr, "KMeans time: " + str(endtime - starttime)
 
     def makeMarker(self, header, id_num, point):
         ## Make a std_msgs/Marker object
@@ -91,8 +98,9 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--input", help="The input sensor_msgs/PointCloud2 topic to find the means", default="/cv/filtered")
     parser.add_argument("-o", "--output", help="The output std_msgs/MarkerArray topic for the means.", default="/cv/kmeans")
     parser.add_argument("-n", "--num-means", help="Number of means to find", type=int, default=10)
+    parser.add_argument("-d", "--debug", help="Print debugging output", action="store_true")
     args = parser.parse_args(rospy.myargv()[1:])
     
-    kmeans = KMeans(args.input, args.output, args.num_means)
+    kmeans = KMeans(args.input, args.output, args.num_means, args.debug)
     kmeans.run()
     
